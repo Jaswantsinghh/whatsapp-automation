@@ -1,311 +1,303 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSocket } from '@/lib/socket.tsx';
-import { MessageList } from '@/components/MessageList';
-import { DashboardStats } from '@/components/DashboardStats';
-import { MessageFilters } from '@/components/MessageFilters';
-import { RealtimeIndicator } from '@/components/RealtimeIndicator';
-import { AISummaryMetrics } from '@/components/AISummaryMetrics';
-import { MessageAnalytics } from '@/components/MessageAnalytics';
-import { QuickActions } from '@/components/QuickActions';
-import { ActivityFeed } from '@/components/ActivityFeed';
-import { WhatsAppMessage } from '../../../shared/types';
-import { MessageSquare, Brain, TrendingUp, Users, BarChart3, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  MessageSquare,
+  BarChart3,
+  Zap,
+  Brain,
+  Users,
+  TrendingUp,
+  ArrowRight,
+  Sparkles,
+  Shield,
+  Globe,
+  Rocket,
+  Star
+} from 'lucide-react';
 
-// Mock data to ensure dashboard shows content immediately
-const mockMessages: WhatsAppMessage[] = [
-  {
-    id: '1',
-    from: '1234567890',
-    to: '0987654321',
-    body: 'This is urgent! My order was supposed to be delivered yesterday and I haven\'t received it yet!',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    type: 'text',
-    priority: 'critical',
-    category: 'complaint',
-    status: 'pending',
-    classification: {
-      priority: { level: 'critical', confidence: 0.95, reasoning: 'Urgent delivery complaint' },
-      category: { type: 'complaint', confidence: 0.90, reasoning: 'Customer expressing dissatisfaction' },
-      sentiment: { score: -0.8, label: 'negative' },
-      urgency: true,
-      keywords: ['urgent', 'order', 'delivery', 'yesterday']
-    }
-  },
-  {
-    id: '2',
-    from: '2345678901',
-    to: '0987654321',
-    body: 'Hi, I\'m interested in your enterprise package for my company. We have about 200 employees.',
-    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    type: 'text',
-    priority: 'high',
-    category: 'lead',
-    status: 'pending',
-    classification: {
-      priority: { level: 'high', confidence: 0.85, reasoning: 'Large enterprise lead' },
-      category: { type: 'lead', confidence: 0.88, reasoning: 'Sales inquiry for enterprise package' },
-      sentiment: { score: 0.2, label: 'positive' },
-      urgency: false,
-      keywords: ['enterprise', 'package', 'company', '200 employees']
-    }
-  },
-  {
-    id: '3',
-    from: '3456789012',
-    to: '0987654321',
-    body: 'How do I reset my password? I\'ve tried the forgot password link but not receiving emails.',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    type: 'text',
-    priority: 'medium',
-    category: 'support',
-    status: 'processing',
-    classification: {
-      priority: { level: 'medium', confidence: 0.80, reasoning: 'Standard support request' },
-      category: { type: 'support', confidence: 0.92, reasoning: 'Technical help request' },
-      sentiment: { score: -0.1, label: 'neutral' },
-      urgency: false,
-      keywords: ['reset', 'password', 'forgot', 'emails']
-    }
-  },
-  {
-    id: '4',
-    from: '4567890123',
-    to: '0987654321',
-    body: 'Thank you for the excellent service! Just wanted to let you know how happy I am.',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000),
-    type: 'text',
-    priority: 'low',
-    category: 'general',
-    status: 'replied',
-    classification: {
-      priority: { level: 'low', confidence: 0.75, reasoning: 'Positive feedback message' },
-      category: { type: 'general', confidence: 0.85, reasoning: 'Customer appreciation' },
-      sentiment: { score: 0.9, label: 'positive' },
-      urgency: false,
-      keywords: ['thank', 'excellent', 'service', 'happy']
-    }
-  }
-];
+import DashboardClient from './dashboard-client';
 
-export default function Dashboard() {
-  const { socket, isConnected } = useSocket();
-  const [messages, setMessages] = useState<WhatsAppMessage[]>(mockMessages);
-  const [filteredMessages, setFilteredMessages] = useState<WhatsAppMessage[]>(mockMessages);
-  const [filters, setFilters] = useState({
-    priority: '',
-    category: '',
-    status: '',
-    search: '',
-  });
+interface StatsCardProps {
+  title: string;
+  value: string;
+  change: string;
+  icon: React.ReactNode;
+  gradient: string;
+  delay: number;
+}
 
-  // Fetch real data from API
+const StatsCard = ({ title, value, change, icon, gradient, delay }: StatsCardProps) => (
+  <div
+    className={`glass card-hover p-6 relative overflow-hidden group animate-slide-in-left`}
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    {/* Background gradient overlay */}
+    <div
+      className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-300`}
+    />
+
+    <div className="relative z-10">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg`}>
+          {icon}
+        </div>
+        <span className="text-xs font-semibold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
+          {change}
+        </span>
+      </div>
+
+      <h3 className="text-2xl font-bold text-white mb-1">{value}</h3>
+      <p className="text-gray-400 text-sm font-medium">{title}</p>
+    </div>
+
+    {/* Animated border effect */}
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-shimmer" />
+  </div>
+);
+
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  gradient: string;
+  delay: number;
+}
+
+const FeatureCard = ({ icon, title, description, gradient, delay }: FeatureCardProps) => (
+  <div
+    className="glass-intense card-hover p-6 group relative overflow-hidden animate-scale-in-bounce"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+
+    <div className="relative z-10">
+      <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${gradient} text-white mb-4 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
+        {icon}
+      </div>
+
+      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-pink-400 transition-all duration-300">
+        {title}
+      </h3>
+
+      <p className="text-gray-400 text-sm leading-relaxed">
+        {description}
+      </p>
+    </div>
+  </div>
+);
+
+export default function HomePage() {
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch('http://localhost:3005/api/messages');
-        const data = await response.json();
-        if (data.success && data.data.length > 0) {
-          const convertedMessages = data.data.map((message: any) => ({
-            ...message,
-            timestamp: new Date(message.timestamp),
-          }));
-          setMessages(convertedMessages);
-        }
-      } catch (error) {
-        console.log('Using mock data - API not available');
-        // Keep using mock data if API fails
-      }
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
-    fetchMessages();
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Listen for real-time message updates
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNewMessage = (message: WhatsAppMessage) => {
-      setMessages(prev => [message, ...prev]);
-    };
-
-    const handleMessageClassified = (update: any) => {
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === update.id
-            ? { ...msg, priority: update.priority, category: update.category, status: update.status }
-            : msg
-        )
-      );
-    };
-
-    socket.on('new-message', handleNewMessage);
-    socket.on('message-classified', handleMessageClassified);
-
-    return () => {
-      socket.off('new-message', handleNewMessage);
-      socket.off('message-classified', handleMessageClassified);
-    };
-  }, [socket]);
-
-  // Filter messages based on active filters
-  useEffect(() => {
-    let filtered = messages;
-
-    if (filters.priority) {
-      filtered = filtered.filter(msg => msg.priority === filters.priority);
-    }
-
-    if (filters.category) {
-      filtered = filtered.filter(msg => msg.category === filters.category);
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter(msg => msg.status === filters.status);
-    }
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(msg =>
-        msg.body.toLowerCase().includes(searchLower) ||
-        msg.from.includes(filters.search)
-      );
-    }
-
-    setFilteredMessages(filtered);
-  }, [messages, filters]);
+  if (showDashboard) {
+    return <DashboardClient />;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
-      {/* Enhanced Header */}
-      <header className="border-b bg-white/80 backdrop-blur-xl sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl">
-                  <MessageSquare className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    WhatsApp Analytics Hub
-                  </h1>
-                  <p className="text-sm text-gray-500 font-medium">Real-time message intelligence & automation</p>
-                </div>
-              </div>
-              <RealtimeIndicator isConnected={isConnected} />
-            </div>
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-4 bg-gray-50/80 px-4 py-2 rounded-full border">
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-semibold text-gray-700">{messages.length} Total</span>
-                </div>
-                <div className="h-4 w-px bg-gray-300"></div>
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-semibold text-gray-700">{filteredMessages.length} Filtered</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[var(--bg-primary)] relative overflow-hidden">
+      {/* Animated cursor follow effect */}
+      <div
+        className="fixed w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-20 pointer-events-none z-50 blur-sm transition-all duration-100 ease-out"
+        style={{
+          transform: `translate(${mousePosition.x - 12}px, ${mousePosition.y - 12}px)`,
+        }}
+      />
 
-      <div className="container mx-auto px-6 py-8 space-y-8">
-        {/* Quick Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 rounded-2xl text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-100 text-sm font-medium">Critical Messages</p>
-                <p className="text-3xl font-bold">{messages.filter(m => m.priority === 'critical').length}</p>
-              </div>
-              <Zap className="h-8 w-8 text-red-200" />
-            </div>
-          </div>
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-2xl text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm font-medium">AI Confidence</p>
-                <p className="text-3xl font-bold">84%</p>
-              </div>
-              <Brain className="h-8 w-8 text-blue-200" />
-            </div>
-          </div>
-          <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-2xl text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm font-medium">Response Rate</p>
-                <p className="text-3xl font-bold">96%</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-green-200" />
-            </div>
-          </div>
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-2xl text-white shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-sm font-medium">Active Users</p>
-                <p className="text-3xl font-bold">{new Set(messages.map(m => m.from)).size}</p>
-              </div>
-              <Users className="h-8 w-8 text-purple-200" />
-            </div>
-          </div>
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center px-6">
+        {/* Animated background elements */}
+        <div className="absolute inset-0">
+          <div className="floating absolute top-20 left-10 w-32 h-32 bg-purple-500/10 rounded-full blur-xl" />
+          <div className="floating-reverse absolute top-40 right-20 w-48 h-48 bg-blue-500/10 rounded-full blur-xl" />
+          <div className="floating absolute bottom-20 left-1/4 w-24 h-24 bg-pink-500/10 rounded-full blur-xl" />
+          <div className="floating-reverse absolute bottom-40 right-1/3 w-40 h-40 bg-emerald-500/10 rounded-full blur-xl" />
         </div>
 
-        {/* AI Analytics Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* AI Summary - Takes up 2 columns */}
-          <div className="xl:col-span-2">
-            <AISummaryMetrics messages={messages} />
+        <div className="max-w-6xl mx-auto text-center relative z-10">
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-purple-500/30 mb-6 animate-scale-in-bounce">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-200">Ultra-Modern WhatsApp Dashboard</span>
+            </div>
+
+            <h1 className="text-display gradient-text-cosmic mb-6 animate-slide-in-left">
+              Next-Gen WhatsApp
+              <br />
+              <span className="gradient-text-secondary">Automation Hub</span>
+            </h1>
+
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-8 animate-slide-in-right" style={{ animationDelay: '200ms' }}>
+              Experience the future of WhatsApp Business automation with AI-powered message classification,
+              real-time analytics, and glassmorphism design that sets new standards.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-scale-in-bounce" style={{ animationDelay: '400ms' }}>
+              <button
+                onClick={() => setShowDashboard(true)}
+                className="btn-primary flex items-center gap-3 px-8 py-4 text-lg group hover:scale-105 transition-transform duration-300"
+              >
+                <Rocket className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                Launch Dashboard
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </button>
+
+              <button className="glass px-8 py-4 text-lg font-semibold text-white hover:bg-white/10 transition-all duration-300 flex items-center gap-3 group hover:scale-105">
+                <Star className="w-5 h-5 text-yellow-400 group-hover:rotate-12 transition-transform duration-300" />
+                View Demo
+              </button>
+            </div>
           </div>
 
-          {/* Quick Actions Panel */}
-          <div className="space-y-6">
-            <QuickActions messages={messages} />
-            <ActivityFeed messages={messages} />
-          </div>
-        </div>
-
-        {/* Main Dashboard Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          {/* Sidebar - Enhanced Stats and Filters */}
-          <div className="xl:col-span-1 space-y-6">
-            <DashboardStats messages={messages} />
-            <MessageFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              messageCount={filteredMessages.length}
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            <StatsCard
+              title="Messages Processed"
+              value="50K+"
+              change="+23%"
+              icon={<MessageSquare className="w-6 h-6" />}
+              gradient="from-blue-500 to-purple-600"
+              delay={600}
             />
-            <MessageAnalytics messages={messages} />
+            <StatsCard
+              title="AI Accuracy"
+              value="98.5%"
+              change="+2.1%"
+              icon={<Brain className="w-6 h-6" />}
+              gradient="from-purple-500 to-pink-600"
+              delay={700}
+            />
+            <StatsCard
+              title="Response Time"
+              value="< 1s"
+              change="-15%"
+              icon={<Zap className="w-6 h-6" />}
+              gradient="from-emerald-500 to-blue-600"
+              delay={800}
+            />
+            <StatsCard
+              title="Active Users"
+              value="2.3K"
+              change="+45%"
+              icon={<Users className="w-6 h-6" />}
+              gradient="from-orange-500 to-red-600"
+              delay={900}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-6 relative">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16 animate-slide-in-left">
+            <h2 className="text-headline gradient-text mb-4">
+              Revolutionary Features
+            </h2>
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Powered by cutting-edge technology and designed for the future
+            </p>
           </div>
 
-          {/* Main Content - Enhanced Message List */}
-          <div className="xl:col-span-3">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <BarChart3 className="h-6 w-6 text-blue-600" />
-                    <h2 className="text-xl font-bold text-gray-900">Message Stream</h2>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-gray-600">Live Updates</span>
-                  </div>
-                </div>
-              </div>
-              <div className="p-0">
-                <MessageList
-                  messages={filteredMessages}
-                  isLoading={false}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <FeatureCard
+              icon={<Brain className="w-6 h-6" />}
+              title="AI-Powered Classification"
+              description="Advanced machine learning algorithms automatically categorize and prioritize messages with 98.5% accuracy"
+              gradient="from-purple-500 to-pink-600"
+              delay={200}
+            />
+            <FeatureCard
+              icon={<BarChart3 className="w-6 h-6" />}
+              title="Real-Time Analytics"
+              description="Comprehensive insights and metrics updated in real-time with beautiful visualizations and trends"
+              gradient="from-blue-500 to-emerald-600"
+              delay={300}
+            />
+            <FeatureCard
+              icon={<Zap className="w-6 h-6" />}
+              title="Lightning Fast"
+              description="Ultra-optimized performance with response times under 1 second and seamless user experience"
+              gradient="from-yellow-500 to-orange-600"
+              delay={400}
+            />
+            <FeatureCard
+              icon={<Shield className="w-6 h-6" />}
+              title="Enterprise Security"
+              description="Bank-level security with end-to-end encryption and compliance with global data protection standards"
+              gradient="from-emerald-500 to-teal-600"
+              delay={500}
+            />
+            <FeatureCard
+              icon={<Globe className="w-6 h-6" />}
+              title="Global Scale"
+              description="Built to handle millions of messages with auto-scaling infrastructure and 99.9% uptime guarantee"
+              gradient="from-indigo-500 to-purple-600"
+              delay={600}
+            />
+            <FeatureCard
+              icon={<TrendingUp className="w-6 h-6" />}
+              title="Smart Insights"
+              description="Predictive analytics and actionable insights to optimize your WhatsApp business operations"
+              gradient="from-rose-500 to-pink-600"
+              delay={700}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-6 relative">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="glass-intense p-12 relative overflow-hidden card-hover animate-scale-in-bounce" style={{ animationDelay: '200ms' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20" />
+
+            <div className="relative z-10">
+              <h2 className="text-headline gradient-text-cosmic mb-6">
+                Ready to Transform Your Business?
+              </h2>
+
+              <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                Join thousands of businesses already using our platform to revolutionize their WhatsApp communication
+              </p>
+
+              <button
+                onClick={() => setShowDashboard(true)}
+                className="btn-primary text-xl px-12 py-5 inline-flex items-center gap-4 group hover:scale-105 transition-transform duration-300"
+              >
+                <Sparkles className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+                Experience the Future
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-300" />
+              </button>
+            </div>
+
+            {/* Animated particles */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-2 h-2 bg-white/20 rounded-full floating"
+                  style={{
+                    left: `${20 + i * 15}%`,
+                    top: `${60 + Math.sin(i) * 20}%`,
+                    animationDelay: `${i * 0.5}s`,
+                  }}
                 />
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
