@@ -4,27 +4,27 @@
 @tailwind utilities;
 
 :root {
-  /* Ultra Modern Color System */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --gradient-warning: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-  --gradient-danger: linear-gradient(135deg, #ff8a80 0%, #ff5252 100%);
-  --gradient-cosmic: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  /* Professional Enterprise Color System */
+  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  --gradient-secondary: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  --gradient-success: linear-gradient(135deg, #059669 0%, #047857 100%);
+  --gradient-warning: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  --gradient-danger: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --gradient-accent: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
 
-  /* Glassmorphism Variables */
-  --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  /* Professional UI Variables */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.15);
 
-  /* Dark Theme */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #141419;
-  --bg-tertiary: #1a1a22;
-  --bg-card: #1e1e26;
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
+  /* Enterprise Dark Theme */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
 
   /* Advanced Color Palette */
   --purple-500: #8b5cf6;
@@ -50,16 +50,16 @@
 }
 
 [data-theme="light"] {
-  --bg-primary: #fafafa;
+  --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f4f4f5;
+  --bg-tertiary: #f1f5f9;
   --bg-card: #ffffff;
-  --text-primary: #09090b;
-  --text-secondary: #52525b;
-  --text-tertiary: #71717a;
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(0, 0, 0, 0.1);
-  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 20px 40px -5px rgba(0, 0, 0, 0.05);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 8px 16px -4px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -83,7 +83,7 @@ body {
   position: relative;
 }
 
-/* Animated background */
+/* Professional background pattern */
 body::before {
   content: '';
   position: fixed;
@@ -91,14 +91,10 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(600px circle at 50% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
   z-index: -1;
-  animation: breathe 8s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.8; }
 }
 
 /* Ultra Modern Scrollbar */
@@ -206,29 +202,26 @@ body::before {
   animation: floatReverse 3s ease-in-out infinite;
 }
 
-/* Gradient Text */
+/* Professional Text Styling */
 .gradient-text {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .gradient-text-secondary {
-  background: var(--gradient-secondary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 800;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
-.gradient-text-cosmic {
-  background: var(--gradient-cosmic);
+.gradient-text-accent {
+  background: var(--gradient-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 /* Modern Card Hover Effects */
