@@ -1,0 +1,8 @@
+tunnel: whatsapp-webhook-tunnel
+credentials-file: /Users/jaswant-singh-work/ai-wp-dashboard/.cloudflared/credentials.json
+
+ingress:
+  - hostname: whatsapp-webhook.trycloudflare.com
+    service: http://localhost:3005
+  # Catch-all rule
+  - service: http_status:404

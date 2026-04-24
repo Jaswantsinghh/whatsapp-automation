@@ -1,0 +1,24 @@
+{
+  "entry": [{
+    "id": "PHONE_NUMBER_ID",
+    "changes": [{
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": {
+          "display_phone_number": "15551234567",
+          "phone_number_id": "PHONE_NUMBER_ID"
+        },
+        "messages": [{
+          "from": "918888888888",
+          "id": "wamid.test123",
+          "timestamp": "1703778000",
+          "text": {
+            "body": "Hello! I need urgent help with my order. It was supposed to arrive today but I haven't received it yet!"
+          },
+          "type": "text"
+        }]
+      },
+      "field": "messages"
+    }]
+  }]
+}

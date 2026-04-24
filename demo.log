@@ -1,0 +1,9 @@
+🚀 Demo server running on port 3005
+📊 Dashboard URL: http://localhost:3000
+🔗 API URL: http://localhost:3005
+📋 Health check: http://localhost:3005/health
+
+✨ Demo credentials:
+• Admin: demo@whatsapp-webhook.com / demo123
+• Agent: agent1@whatsapp-webhook.com / demo123
+
