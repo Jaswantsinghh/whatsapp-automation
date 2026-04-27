@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const crypto = require('crypto');
+const axios = require('axios');
 
 const app = express();
 const httpServer = createServer(app);
@@ -13,6 +15,146 @@ const io = new Server(httpServer, {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Webhook configuration storage
+const webhookConfigs = [
+  {
+    id: 'webhook1',
+    name: 'Test Webhook Receiver',
+    url: 'http://localhost:3002/webhook',
+    secret: 'your-webhook-secret-key',
+    enabled: true,
+    events: ['message.processed', 'message.classified'],
+    retryAttempts: 3,
+    timeout: 5000
+  }
+];
+
+// Webhook delivery queue (in-memory for demo)
+const webhookQueue = [];
+
+// AI Message Classification Mock
+function classifyMessage(message) {
+  const text = message.body?.toLowerCase() || '';
+
+  // Mock AI classification logic
+  let priority = 'low';
+  let category = 'general';
+  let sentiment = 'neutral';
+  let confidence = 0.85;
+
+  // Priority classification
+  if (text.includes('urgent') || text.includes('emergency') || text.includes('asap')) {
+    priority = 'critical';
+  } else if (text.includes('important') || text.includes('please') || text.includes('need')) {
+    priority = 'high';
+  } else if (text.includes('when') || text.includes('how') || text.includes('question')) {
+    priority = 'medium';
+  }
+
+  // Category classification
+  if (text.includes('complaint') || text.includes('problem') || text.includes('issue') || text.includes('wrong')) {
+    category = 'complaint';
+  } else if (text.includes('buy') || text.includes('purchase') || text.includes('interested') || text.includes('price')) {
+    category = 'lead';
+  } else if (text.includes('help') || text.includes('support') || text.includes('how to')) {
+    category = 'support';
+  } else if (text.includes('order') || text.includes('delivery') || text.includes('shipping')) {
+    category = 'sales';
+  }
+
+  // Sentiment analysis
+  if (text.includes('angry') || text.includes('frustrated') || text.includes('terrible')) {
+    sentiment = 'negative';
+  } else if (text.includes('happy') || text.includes('great') || text.includes('excellent')) {
+    sentiment = 'positive';
+  }
+
+  return {
+    priority,
+    category,
+    sentiment,
+    confidence,
+    keywords: extractKeywords(text),
+    processedAt: new Date().toISOString()
+  };
+}
+
+// Extract keywords from message
+function extractKeywords(text) {
+  const stopWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'];
+  return text.split(' ')
+    .filter(word => word.length > 3 && !stopWords.includes(word))
+    .slice(0, 5);
+}
+
+// Generate webhook signature
+function generateSignature(payload, secret) {
+  return crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(payload))
+    .digest('hex');
+}
+
+// Send webhook with retry logic
+async function sendWebhook(config, payload, attempt = 1) {
+  try {
+    const signature = generateSignature(payload, config.secret);
+
+    const response = await axios.post(config.url, payload, {
+      timeout: config.timeout,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Webhook-Signature': `sha256=${signature}`,
+        'X-Webhook-Event': payload.event,
+        'X-Webhook-Delivery': crypto.randomUUID(),
+        'User-Agent': 'WhatsApp-Webhook-Service/1.0'
+      }
+    });
+
+    console.log(`✅ Webhook delivered to ${config.name}: ${response.status}`);
+    return { success: true, status: response.status };
+
+  } catch (error) {
+    console.error(`❌ Webhook delivery failed to ${config.name} (attempt ${attempt}):`, error.message);
+
+    if (attempt < config.retryAttempts) {
+      const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+      console.log(`🔄 Retrying in ${delay}ms...`);
+
+      setTimeout(() => {
+        sendWebhook(config, payload, attempt + 1);
+      }, delay);
+    } else {
+      console.error(`💥 Webhook delivery permanently failed to ${config.name} after ${config.retryAttempts} attempts`);
+    }
+
+    return { success: false, error: error.message };
+  }
+}
+
+// Deliver webhooks for processed messages
+function deliverWebhooks(eventType, messageData) {
+  const enabledWebhooks = webhookConfigs.filter(config =>
+    config.enabled && config.events.includes(eventType)
+  );
+
+  if (enabledWebhooks.length === 0) {
+    console.log(`No webhooks configured for event: ${eventType}`);
+    return;
+  }
+
+  const webhookPayload = {
+    event: eventType,
+    timestamp: new Date().toISOString(),
+    data: messageData
+  };
+
+  enabledWebhooks.forEach(config => {
+    console.log(`📤 Sending webhook to ${config.name} for event: ${eventType}`);
+    sendWebhook(config, webhookPayload);
+  });
+}
 
 // Basic middleware
 app.use(cors({
@@ -97,12 +239,51 @@ app.post('/api/webhook/whatsapp', (req, res) => {
       if (change.field === 'messages' && change.value.messages) {
         console.log('Processing messages:', change.value.messages);
 
-        // Emit to dashboard
-        io.to('dashboard').emit('new-message', {
-          id: Date.now().toString(),
-          message: change.value.messages[0],
-          timestamp: new Date().toISOString()
-        });
+        for (const message of change.value.messages) {
+          // AI Classification
+          const aiAnalysis = classifyMessage(message);
+          console.log('AI Analysis result:', aiAnalysis);
+
+          const processedMessage = {
+            id: Date.now().toString(),
+            originalMessage: message,
+            from: message.from,
+            to: change.value.metadata?.phone_number_id,
+            body: message.text?.body || message.caption || '[Media message]',
+            type: message.type,
+            timestamp: new Date(message.timestamp * 1000).toISOString(),
+            ...aiAnalysis,
+            status: 'processed'
+          };
+
+          // Store in mock messages
+          mockMessages.unshift(processedMessage);
+          if (mockMessages.length > 100) mockMessages.pop();
+
+          // Emit to dashboard
+          io.to('dashboard').emit('new-message', {
+            id: processedMessage.id,
+            message: processedMessage,
+            timestamp: processedMessage.timestamp
+          });
+
+          // Trigger webhooks
+          deliverWebhooks('message.processed', processedMessage);
+          deliverWebhooks('message.classified', {
+            messageId: processedMessage.id,
+            classification: {
+              priority: aiAnalysis.priority,
+              category: aiAnalysis.category,
+              sentiment: aiAnalysis.sentiment,
+              confidence: aiAnalysis.confidence
+            },
+            message: {
+              from: processedMessage.from,
+              body: processedMessage.body,
+              timestamp: processedMessage.timestamp
+            }
+          });
+        }
       }
     }
   }
@@ -132,6 +313,117 @@ app.post('/api/auth/login', (req, res) => {
     success: false,
     error: 'Invalid credentials'
   });
+});
+
+// Webhook management API
+app.get('/api/webhooks', (req, res) => {
+  res.json({
+    success: true,
+    data: webhookConfigs
+  });
+});
+
+app.post('/api/webhooks', (req, res) => {
+  const { name, url, secret, events } = req.body;
+
+  if (!name || !url || !secret) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields: name, url, secret'
+    });
+  }
+
+  const newWebhook = {
+    id: `webhook_${Date.now()}`,
+    name,
+    url,
+    secret,
+    enabled: true,
+    events: events || ['message.processed'],
+    retryAttempts: 3,
+    timeout: 5000
+  };
+
+  webhookConfigs.push(newWebhook);
+
+  res.json({
+    success: true,
+    data: newWebhook
+  });
+});
+
+app.put('/api/webhooks/:id', (req, res) => {
+  const { id } = req.params;
+  const webhook = webhookConfigs.find(w => w.id === id);
+
+  if (!webhook) {
+    return res.status(404).json({
+      success: false,
+      error: 'Webhook not found'
+    });
+  }
+
+  Object.assign(webhook, req.body);
+
+  res.json({
+    success: true,
+    data: webhook
+  });
+});
+
+app.delete('/api/webhooks/:id', (req, res) => {
+  const { id } = req.params;
+  const index = webhookConfigs.findIndex(w => w.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'Webhook not found'
+    });
+  }
+
+  webhookConfigs.splice(index, 1);
+
+  res.json({
+    success: true,
+    message: 'Webhook deleted'
+  });
+});
+
+// Test webhook endpoint
+app.post('/api/webhooks/:id/test', (req, res) => {
+  const { id } = req.params;
+  const webhook = webhookConfigs.find(w => w.id === id);
+
+  if (!webhook) {
+    return res.status(404).json({
+      success: false,
+      error: 'Webhook not found'
+    });
+  }
+
+  const testPayload = {
+    event: 'webhook.test',
+    timestamp: new Date().toISOString(),
+    data: {
+      message: 'This is a test webhook delivery',
+      test: true
+    }
+  };
+
+  sendWebhook(webhook, testPayload)
+    .then(result => {
+      res.json({
+        success: true,
+        result
+      });
+    })
+    .catch(error => {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    });
 });
 
 // Mock messages API
@@ -194,6 +486,11 @@ httpServer.listen(PORT, () => {
   console.log(`🔗 API URL: http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 Webhook URL: http://localhost:${PORT}/api/webhook/whatsapp`);
+  console.log(`🎯 Webhook Management: http://localhost:${PORT}/api/webhooks`);
+  console.log(`\n📡 Configured Webhooks: ${webhookConfigs.length}`);
+  webhookConfigs.forEach(webhook => {
+    console.log(`  • ${webhook.name}: ${webhook.enabled ? '✅ Enabled' : '❌ Disabled'}`);
+  });
   console.log(`\n✨ Demo credentials:`);
   console.log(`• Admin: demo@whatsapp-webhook.com / demo123`);
   console.log(`• Agent: agent1@whatsapp-webhook.com / demo123\n`);
