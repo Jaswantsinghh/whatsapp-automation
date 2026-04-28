@@ -1,24 +1,39 @@
 {
-  "entry": [{
-    "id": "PHONE_NUMBER_ID",
-    "changes": [{
-      "value": {
-        "messaging_product": "whatsapp",
-        "metadata": {
-          "display_phone_number": "15551234567",
-          "phone_number_id": "PHONE_NUMBER_ID"
-        },
-        "messages": [{
-          "from": "918888888888",
-          "id": "wamid.test123",
-          "timestamp": "1703778000",
-          "text": {
-            "body": "Hello! I need urgent help with my order. It was supposed to arrive today but I haven't received it yet!"
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15551234567",
+              "phone_number_id": "12345678901234567890"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "John Customer"
+                },
+                "wa_id": "1234567890"
+              }
+            ],
+            "messages": [
+              {
+                "from": "1234567890",
+                "id": "wamid.test123",
+                "timestamp": 1735043600,
+                "text": {
+                  "body": "This is urgent! My order was supposed to be delivered yesterday and I haven't received it yet! I'm very frustrated with this service."
+                },
+                "type": "text"
+              }
+            ]
           },
-          "type": "text"
-        }]
-      },
-      "field": "messages"
-    }]
-  }]
+          "field": "messages"
+        }
+      ]
+    }
+  ]
 }
