@@ -116,6 +116,41 @@ export const dailyMetrics = pgTable('daily_metrics', {
   dateIdx: index('daily_metrics_date_idx').on(table.date),
 }));
 
+// Message types table
+export const messageTypes = pgTable('message_types', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 100 }).unique().notNull(),
+  description: text('description'),
+  color: varchar('color', { length: 7 }).default('#3B82F6'), // Hex color code
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  nameIdx: index('message_types_name_idx').on(table.name),
+}));
+
+// User message type permissions table
+export const userMessageTypePermissions = pgTable('user_message_type_permissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  messageTypeId: uuid('message_type_id').notNull(),
+  canView: boolean('can_view').default(false),
+  canReply: boolean('can_reply').default(false),
+  canAssign: boolean('can_assign').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('user_message_type_permissions_user_id_idx').on(table.userId),
+  messageTypeIdx: index('user_message_type_permissions_message_type_idx').on(table.messageTypeId),
+  userIdFk: foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+  }),
+  messageTypeIdFk: foreignKey({
+    columns: [table.messageTypeId],
+    foreignColumns: [messageTypes.id],
+  }),
+}));
+
 // User sessions table for JWT management
 export const userSessions = pgTable('user_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -139,6 +174,22 @@ export const usersRelations = relations(users, ({ many }) => ({
   assignedMessages: many(messages),
   messageReplies: many(messageReplies),
   userSessions: many(userSessions),
+  messageTypePermissions: many(userMessageTypePermissions),
+}));
+
+export const messageTypesRelations = relations(messageTypes, ({ many }) => ({
+  userPermissions: many(userMessageTypePermissions),
+}));
+
+export const userMessageTypePermissionsRelations = relations(userMessageTypePermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userMessageTypePermissions.userId],
+    references: [users.id],
+  }),
+  messageType: one(messageTypes, {
+    fields: [userMessageTypePermissions.messageTypeId],
+    references: [messageTypes.id],
+  }),
 }));
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({

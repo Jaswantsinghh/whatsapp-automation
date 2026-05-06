@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth';
 import { messagesRoutes } from './routes/messages';
 import { analyticsRoutes } from './routes/analytics';
 import { seedRoutes } from './routes/seed';
+import { messageTypesRoutes } from './routes/messageTypes';
 import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler, addRequestId, setupGlobalErrorHandlers } from './middleware/errorHandler';
 
@@ -86,6 +87,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/seed', seedRoutes);
+app.use('/api/message-types', messageTypesRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

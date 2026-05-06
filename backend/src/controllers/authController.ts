@@ -29,6 +29,24 @@ const changePasswordSchema = z.object({
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
 });
 
+const updateUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  email: z.string().email('Invalid email format').optional(),
+  role: z.enum(['admin', 'manager', 'agent']).optional(),
+  isActive: z.boolean().optional(),
+});
+
+const userPermissionsSchema = z.object({
+  messageTypeId: z.string().uuid('Invalid message type ID'),
+  canView: z.boolean().default(false),
+  canReply: z.boolean().default(false),
+  canAssign: z.boolean().default(false),
+});
+
+const updateUserPermissionsSchema = z.object({
+  permissions: z.array(userPermissionsSchema),
+});
+
 class AuthController {
   /**
    * Login user
@@ -296,6 +314,123 @@ class AuthController {
         success: false,
         error: 'Invalid or expired token',
         valid: false,
+      });
+    }
+  }
+
+  /**
+   * Get all users (admin only)
+   */
+  async getAllUsers(req: Request, res: Response) {
+    try {
+      const users = await authService.getAllUsers();
+
+      res.json({
+        success: true,
+        data: {
+          users,
+        },
+      });
+
+    } catch (error) {
+      logger.error('Get all users error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get users',
+      });
+    }
+  }
+
+  /**
+   * Update user (admin only)
+   */
+  async updateUser(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedBody = updateUserSchema.parse(req.body);
+
+      const updatedUser = await authService.updateUser(id, validatedBody);
+
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        data: {
+          user: updatedUser,
+        },
+      });
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid input data',
+          details: error.errors,
+        });
+      }
+
+      logger.error('Update user error:', error);
+
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update user',
+      });
+    }
+  }
+
+  /**
+   * Delete user (admin only)
+   */
+  async deleteUser(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await authService.deleteUser(id);
+
+      res.json({
+        success: true,
+        message: 'User deleted successfully',
+      });
+
+    } catch (error) {
+      logger.error('Delete user error:', error);
+
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete user',
+      });
+    }
+  }
+
+  /**
+   * Update user permissions (admin only)
+   */
+  async updateUserPermissions(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const validatedBody = updateUserPermissionsSchema.parse(req.body);
+
+      await authService.updateUserPermissions(id, validatedBody.permissions);
+
+      res.json({
+        success: true,
+        message: 'User permissions updated successfully',
+      });
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid input data',
+          details: error.errors,
+        });
+      }
+
+      logger.error('Update user permissions error:', error);
+
+      res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update user permissions',
       });
     }
   }

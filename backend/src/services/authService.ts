@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db, users, userSessions } from '../db';
+import { db, users, userSessions, userMessageTypePermissions } from '../db';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
@@ -14,6 +14,20 @@ interface RegisterData {
   password: string;
   name: string;
   role?: 'admin' | 'manager' | 'agent';
+}
+
+interface UpdateUserData {
+  name?: string;
+  email?: string;
+  role?: 'admin' | 'manager' | 'agent';
+  isActive?: boolean;
+}
+
+interface UserPermission {
+  messageTypeId: string;
+  canView: boolean;
+  canReply: boolean;
+  canAssign: boolean;
 }
 
 interface TokenPayload {
@@ -367,6 +381,175 @@ export class AuthService {
       issuer: 'whatsapp-webhook',
       audience: 'dashboard',
     });
+  }
+
+  /**
+   * Get all users (admin only)
+   */
+  async getAllUsers() {
+    try {
+      const allUsers = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          lastActiveAt: users.lastActiveAt,
+        })
+        .from(users);
+
+      return allUsers;
+
+    } catch (error) {
+      logger.error('Get all users failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user data (admin only)
+   */
+  async updateUser(userId: string, updateData: UpdateUserData) {
+    try {
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new Error('User not found');
+      }
+
+      // If email is being updated, check for duplicates
+      if (updateData.email && updateData.email !== existingUser.email) {
+        const [emailExists] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, updateData.email))
+          .limit(1);
+
+        if (emailExists) {
+          throw new Error('User with this email already exists');
+        }
+      }
+
+      // Update user
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          ...updateData,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId))
+        .returning({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          role: users.role,
+          isActive: users.isActive,
+          updatedAt: users.updatedAt,
+        });
+
+      logger.info('User updated successfully', { userId, updateData });
+
+      return updatedUser;
+
+    } catch (error) {
+      logger.error('Update user failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete user (admin only)
+   */
+  async deleteUser(userId: string) {
+    try {
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new Error('User not found');
+      }
+
+      // Revoke all user sessions
+      await db
+        .update(userSessions)
+        .set({ isRevoked: true })
+        .where(eq(userSessions.userId, userId));
+
+      // Delete user permissions
+      await db
+        .delete(userMessageTypePermissions)
+        .where(eq(userMessageTypePermissions.userId, userId));
+
+      // Delete user
+      await db
+        .delete(users)
+        .where(eq(users.id, userId));
+
+      logger.info('User deleted successfully', { userId });
+
+      return { message: 'User deleted successfully' };
+
+    } catch (error) {
+      logger.error('Delete user failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update user permissions (admin only)
+   */
+  async updateUserPermissions(userId: string, permissions: UserPermission[]) {
+    try {
+      // Check if user exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new Error('User not found');
+      }
+
+      // Delete existing permissions
+      await db
+        .delete(userMessageTypePermissions)
+        .where(eq(userMessageTypePermissions.userId, userId));
+
+      // Insert new permissions
+      if (permissions.length > 0) {
+        await db
+          .insert(userMessageTypePermissions)
+          .values(
+            permissions.map(permission => ({
+              userId,
+              messageTypeId: permission.messageTypeId,
+              canView: permission.canView,
+              canReply: permission.canReply,
+              canAssign: permission.canAssign,
+            }))
+          );
+      }
+
+      logger.info('User permissions updated successfully', { userId, permissionsCount: permissions.length });
+
+      return { message: 'User permissions updated successfully' };
+
+    } catch (error) {
+      logger.error('Update user permissions failed:', error);
+      throw error;
+    }
   }
 }
 

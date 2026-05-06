@@ -16,5 +16,9 @@ router.put('/change-password', authenticateToken, auditLog('change_password'), a
 
 // Admin only routes
 router.post('/register', authenticateToken, requireAdmin, auditLog('register_user'), authController.register);
+router.get('/users', authenticateToken, requireAdmin, authController.getAllUsers);
+router.put('/users/:id', authenticateToken, requireAdmin, auditLog('update_user'), authController.updateUser);
+router.delete('/users/:id', authenticateToken, requireAdmin, auditLog('delete_user'), authController.deleteUser);
+router.put('/users/:id/permissions', authenticateToken, requireAdmin, auditLog('update_permissions'), authController.updateUserPermissions);
 
 export { router as authRoutes };
